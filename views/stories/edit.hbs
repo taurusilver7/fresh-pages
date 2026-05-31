@@ -140,7 +140,7 @@
 
     editor = CKEDITOR.replace('active-editor', {
       plugins: 'wysiwygarea,toolbar,colordialog,dialogui,format,codesnippet,font,horizontalrule,uicolor,undo,pagebreak,find,basicstyles,blockquote,justify,link,list,indent,enterkey,entities,htmlwriter,clipboard,maximize,notification',
-      height: 360,
+      height: window.innerWidth >= 1440 ? 400 : 360,
       wordcount: {
         showParagraphs: false,
         showBlockCount: false,

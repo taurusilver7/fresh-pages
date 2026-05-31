@@ -400,6 +400,158 @@
       // Initialize TTS Manager
       let ttsManager = null;
       let ttsState = 'idle'; // idle, playing, paused
+      let voicesLoaded = false;
+      let availableVoices = [];
+
+      // Load voices immediately and listen for changes
+      function loadVoices() {
+        availableVoices = window.speechSynthesis.getVoices();
+        if (availableVoices.length > 0) {
+          voicesLoaded = true;
+          console.log('✓ Voices loaded:', availableVoices.length, 'voices available');
+          console.log('Available voices:', availableVoices.map(v => v.name + ' (' + v.lang + ')'));
+        }
+      }
+
+      // Try to load voices immediately
+      loadVoices();
+
+      // Listen for voices to be loaded (Chrome/Edge need this)
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+
+      function selectFemaleVoice() {
+        if (availableVoices.length === 0) {
+          console.warn('⚠ No voices available yet, using system default');
+          return null;
+        }
+
+        // Detect language from the chapter content
+        const chapterBody = document.querySelector('.chapter-body');
+        let detectedLang = 'en'; // Default to English
+        
+        if (chapterBody) {
+          const text = chapterBody.textContent || '';
+          // Simple language detection based on common patterns
+          if (/[\u0600-\u06FF]/.test(text)) detectedLang = 'ar'; // Arabic
+          if (/[\u4E00-\u9FFF]/.test(text)) detectedLang = 'zh'; // Chinese
+          if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) detectedLang = 'ja'; // Japanese
+          if (/[\uAC00-\uD7AF]/.test(text)) detectedLang = 'ko'; // Korean
+          if (/[\u0400-\u04FF]/.test(text)) detectedLang = 'ru'; // Russian
+          if (/[\u0900-\u097F]/.test(text)) detectedLang = 'hi'; // Hindi
+          if (/[\u0E00-\u0E7F]/.test(text)) detectedLang = 'th'; // Thai
+          
+          // European languages (check common words)
+          if (/\b(el|la|los|las|un|una|es|está|son)\b/i.test(text)) detectedLang = 'es'; // Spanish
+          if (/\b(le|la|les|un|une|est|sont|avec|dans)\b/i.test(text)) detectedLang = 'fr'; // French
+          if (/\b(der|die|das|ein|eine|ist|sind|mit)\b/i.test(text)) detectedLang = 'de'; // German
+          if (/\b(il|la|le|un|una|è|sono|con)\b/i.test(text)) detectedLang = 'it'; // Italian
+          if (/\b(o|a|os|as|um|uma|é|são|com)\b/i.test(text)) detectedLang = 'pt'; // Portuguese
+        }
+
+        console.log('🌍 Detected language:', detectedLang);
+
+        let selectedVoice = null;
+
+        // Language-specific female voice patterns
+        const femaleVoicesByLanguage = {
+          'en': ['Zira', 'Aria', 'Female', 'Samantha', 'Karen', 'Victoria', 'Susan', 'Fiona', 'Moira', 'Tessa', 'Veena'],
+          'es': ['Paulina', 'Monica', 'Helena', 'Lucia', 'Female'],
+          'fr': ['Amelie', 'Hortense', 'Julie', 'Female'],
+          'de': ['Anna', 'Hedda', 'Katja', 'Female'],
+          'it': ['Alice', 'Federica', 'Female'],
+          'pt': ['Joana', 'Luciana', 'Female'],
+          'zh': ['Ting-Ting', 'Yaoyao', 'Female'],
+          'ja': ['Kyoko', 'Otoya', 'Female'],
+          'ko': ['Yuna', 'Female'],
+          'ru': ['Milena', 'Tatyana', 'Female'],
+          'ar': ['Maged', 'Female'],
+          'hi': ['Lekha', 'Female'],
+          'th': ['Kanya', 'Female']
+        };
+
+        // Generic female patterns (fallback for any language)
+        const genericFemalePatterns = ['Female', 'woman', 'girl', 'Zira', 'Aria', 'Samantha'];
+
+        // Priority 1: Try language-specific female voices
+        const languagePatterns = femaleVoicesByLanguage[detectedLang] || genericFemalePatterns;
+        
+        for (const pattern of languagePatterns) {
+          selectedVoice = availableVoices.find(v => 
+            v.name.toLowerCase().includes(pattern.toLowerCase()) &&
+            v.lang.startsWith(detectedLang)
+          );
+          if (selectedVoice) {
+            console.log('✓ Found female voice for', detectedLang + ':', selectedVoice.name);
+            return selectedVoice;
+          }
+        }
+
+        // Priority 2: Try ANY female voice for detected language (not just from our list)
+        selectedVoice = availableVoices.find(v => 
+          v.lang.startsWith(detectedLang) &&
+          (v.name.toLowerCase().includes('female') || 
+           v.name.toLowerCase().includes('woman'))
+        );
+        if (selectedVoice) {
+          console.log('✓ Found generic female voice for', detectedLang + ':', selectedVoice.name);
+          return selectedVoice;
+        }
+
+        // Priority 3: If detected language not English, try English female as fallback
+        if (detectedLang !== 'en') {
+          console.log('⚠ No female voice for', detectedLang + ', trying English...');
+          for (const pattern of femaleVoicesByLanguage['en']) {
+            selectedVoice = availableVoices.find(v => 
+              v.name.toLowerCase().includes(pattern.toLowerCase()) &&
+              v.lang.startsWith('en')
+            );
+            if (selectedVoice) {
+              console.log('✓ Using English female voice:', selectedVoice.name);
+              return selectedVoice;
+            }
+          }
+        }
+
+        // Priority 4: Try ANY female voice regardless of language
+        for (const pattern of genericFemalePatterns) {
+          selectedVoice = availableVoices.find(v => 
+            v.name.toLowerCase().includes(pattern.toLowerCase())
+          );
+          if (selectedVoice) {
+            console.log('✓ Found female voice (any language):', selectedVoice.name);
+            return selectedVoice;
+          }
+        }
+
+        // Priority 5: Exclude male voices, pick first voice for detected language
+        const malePatterns = ['david', 'mark', 'daniel', 'thomas', 'male', 'man', 'boy', 'george'];
+        selectedVoice = availableVoices.find(v => 
+          v.lang.startsWith(detectedLang) &&
+          !malePatterns.some(pattern => v.name.toLowerCase().includes(pattern))
+        );
+        if (selectedVoice) {
+          console.log('✓ Using non-male voice for', detectedLang + ':', selectedVoice.name);
+          return selectedVoice;
+        }
+
+        // Priority 6: First voice for detected language
+        selectedVoice = availableVoices.find(v => v.lang.startsWith(detectedLang));
+        if (selectedVoice) {
+          console.log('⚠ Using first available voice for', detectedLang + ':', selectedVoice.name);
+          return selectedVoice;
+        }
+
+        // Priority 7: Absolute fallback - first available voice
+        if (availableVoices.length > 0) {
+          selectedVoice = availableVoices[0];
+          console.log('⚠ Using first available voice:', selectedVoice.name);
+          return selectedVoice;
+        }
+
+        return null;
+      }
 
       function initTTSManager() {
         const chapterBody = document.querySelector('.chapter-body');
@@ -408,13 +560,29 @@
           return null;
         }
 
-        const chapterContent = chapterBody.innerHTML;
+        // If voices aren't loaded yet, wait a bit and try again
+        if (!voicesLoaded || availableVoices.length === 0) {
+          console.log('⏳ Waiting for voices to load...');
+          availableVoices = window.speechSynthesis.getVoices();
+          if (availableVoices.length > 0) {
+            voicesLoaded = true;
+            console.log('✓ Voices loaded:', availableVoices.length, 'voices available');
+          }
+        }
+
+        const selectedVoice = selectFemaleVoice();
+
+        console.log('=== FINAL SELECTED VOICE ===');
+        console.log('Name:', selectedVoice ? selectedVoice.name : 'System Default');
+        console.log('Language:', selectedVoice ? selectedVoice.lang : 'Unknown');
+        console.log('============================');
 
         return new TTSManager({
-          rate: 1.25,
-          pitch: 1.0,
+          rate: 0.92,        // Slightly slower for storytelling
+          pitch: 1.15,       // Higher pitch for feminine tone
           volume: 1.0,
           lang: 'en-US',
+          voice: selectedVoice,
           onStart: function() {
             ttsState = 'playing';
             updateTTSButton();

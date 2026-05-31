@@ -1,13 +1,6 @@
 {{! Individual Story board }}
 <div class="story-show-wrapper">
 
-  {{! ── WIDER LAYOUT OVERRIDE (External stylesheet untouched) ── }}
-  <style>
-    .story-banner-inner,
-    .chapter-nav-inner { max-width: 980px !important; }
-    .chapter-content-wrapper { max-width: 880px !important; }
-  </style>
-
   {{! ── METADATA BANNER ── }}
   <div class="story-banner">
     <div class="story-banner-inner">
@@ -55,6 +48,9 @@
         </button>
         <button class="reader-btn" id="font-toggle" title="Cycle through 5 reader fonts">Tl</button>
         <button class="reader-btn" id="theme-toggle" title="Toggle dark mode">&#9684;</button>
+        <button class="reader-btn" id="tts-toggle" title="Text-to-speech" style="display: none;">
+          <i class="fas fa-microphone"></i>
+        </button>
       </div>
 
       {{! Right: Chapter selector + pagination }}
@@ -73,6 +69,30 @@
 
         <span class="pag-count">{{currentChapter}} / {{totalChapters}}</span>
 
+        {{! Chapter dropdown selector (only if >1 chapters) }}
+        {{#if (gt totalChapters 1)}}
+          <div class="chapter-dropdown-wrapper">
+            <button class="chapter-dropdown-btn" id="chapterDropdownBtn" title="Select chapter">
+              <i class="fas fa-list"></i>
+              <span class="dropdown-text">Chapters</span>
+              <i class="fas fa-chevron-down dropdown-arrow"></i>
+            </button>
+            <div class="chapter-dropdown-menu" id="chapterDropdownMenu">
+              {{#each story.chapters}}
+                <a href="/stories/{{../story._id}}?chapter={{this.chapterNumber}}" 
+                   class="chapter-dropdown-item {{#if (eq this.chapterNumber ../currentChapter)}}active{{/if}}"
+                   data-chapter="{{this.chapterNumber}}">
+                  {{!-- <span class="chapter-num">{{this.chapterNumber}}</span> --}}
+                  <span class="chapter-title-text">{{this.title}}</span>
+                  {{#if (eq this.chapterNumber ../currentChapter)}}
+                    <i class="fas fa-check chapter-check"></i>
+                  {{/if}}
+                </a>
+              {{/each}}
+            </div>
+          </div>
+        {{/if}}
+
         {{#if nextChapter}}
           <a href="/stories/{{story._id}}?chapter={{nextChapter}}" class="jump-btn">
             <span class="btn-text">Next</span>
@@ -89,6 +109,33 @@
     </div>
   </div>
 
+  {{! ── CHAPTER DROPDOWN SCRIPT ── }}
+  <script>
+    (function () {
+      const dropdownBtn = document.getElementById('chapterDropdownBtn');
+      const dropdownMenu = document.getElementById('chapterDropdownMenu');
+      
+      if (dropdownBtn && dropdownMenu) {
+        dropdownBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          dropdownMenu.classList.toggle('show');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+          if (!dropdownMenu.contains(e.target) && e.target !== dropdownBtn) {
+            dropdownMenu.classList.remove('show');
+          }
+        });
+
+        // Prevent dropdown from closing when clicking inside
+        dropdownMenu.addEventListener('click', function (e) {
+          e.stopPropagation();
+        });
+      }
+    })();
+  </script>
+
   {{! ── READER PREFS SCRIPT (FIXED + 5 FONTS) ── }}
   <script>
     (function () {
@@ -103,11 +150,11 @@
 
       // 5 Reader-Optimized Font Stacks
       const fontStacks = [
-        { key: 'georgia',      css: "'Georgia', serif" },
-        { key: 'helvetica',    css: "'Helvetica Neue', Arial, sans-serif" },
-        { key: 'palatino',     css: "'Palatino Linotype', 'Book Antiqua', Palatino, serif" },
-        { key: 'segoe',        css: "'Segoe UI', system-ui, sans-serif" },
-        { key: 'merriweather', css: "'Merriweather', 'Times New Roman', serif" }
+        { key: 'georgia',      css: "'Georgia', 'Times New Roman', serif" },
+        { key: 'charter',      css: "'Charter', 'Bitstream Charter', 'Sitka Text', 'Cambria', serif" },
+        { key: 'iowan',        css: "'Iowan Old Style', 'Palatino Linotype', 'URW Palladio L', 'P052', serif" },
+        { key: 'seravek',      css: "'Seravek', 'Gill Sans Nova', 'Ubuntu', 'Calibri', 'DejaVu Sans', sans-serif" },
+        { key: 'literata',     css: "'Literata', 'Iowan Old Style', 'Apple Garamond', 'Baskerville', 'Times New Roman', serif" }
       ];
 
       function loadPrefs() {
@@ -195,6 +242,296 @@
         applyPrefs(prefs);
         savePrefs(prefs);
       });
+    })();
+  </script>
+
+  {{! ── TEXT-TO-SPEECH FEATURE ── }}
+  <script>
+    // ── TTS Manager Class ──
+    class TTSManager {
+      constructor(options = {}) {
+        this.synth = window.speechSynthesis;
+        this.utterance = null;
+        this.isSupported = 'speechSynthesis' in window;
+        this.isPlaying = false;
+        this.isPaused = false;
+        this.currentText = '';
+        
+        this.config = {
+          rate: options.rate || 1.0,
+          pitch: options.pitch || 1.0,
+          volume: options.volume || 1.0,
+          lang: options.lang || 'en-US',
+          voice: options.voice || null
+        };
+
+        this.onStart = options.onStart || null;
+        this.onEnd = options.onEnd || null;
+        this.onPause = options.onPause || null;
+        this.onResume = options.onResume || null;
+        this.onError = options.onError || null;
+      }
+
+      checkSupport() {
+        return this.isSupported;
+      }
+
+      extractTextFromHTML(htmlContent) {
+        if (!htmlContent) return '';
+        const temp = document.createElement('div');
+        temp.innerHTML = htmlContent;
+        const scripts = temp.querySelectorAll('script, style');
+        scripts.forEach(el => el.remove());
+        let text = temp.textContent || temp.innerText || '';
+        text = text.replace(/\s+/g, ' ').replace(/\n\s*\n/g, '\n\n').trim();
+        return text;
+      }
+
+      speak(text) {
+        if (!this.isSupported) {
+          console.warn('Speech synthesis not supported in this browser');
+          if (this.onError) this.onError('not_supported');
+          return false;
+        }
+
+        this.stop();
+        const plainText = this.extractTextFromHTML(text);
+        
+        if (!plainText) {
+          console.warn('No text content to speak');
+          return false;
+        }
+
+        this.currentText = plainText;
+        this.utterance = new SpeechSynthesisUtterance(plainText);
+        
+        this.utterance.rate = this.config.rate;
+        this.utterance.pitch = this.config.pitch;
+        this.utterance.volume = this.config.volume;
+        this.utterance.lang = this.config.lang;
+
+        if (this.config.voice) {
+          this.utterance.voice = this.config.voice;
+        }
+
+        this.utterance.onstart = () => {
+          this.isPlaying = true;
+          this.isPaused = false;
+          if (this.onStart) this.onStart();
+        };
+
+        this.utterance.onend = () => {
+          this.isPlaying = false;
+          this.isPaused = false;
+          if (this.onEnd) this.onEnd();
+        };
+
+        this.utterance.onerror = (event) => {
+          console.error('Speech synthesis error:', event);
+          this.isPlaying = false;
+          this.isPaused = false;
+          if (this.onError) this.onError(event);
+        };
+
+        this.utterance.onpause = () => {
+          this.isPaused = true;
+          if (this.onPause) this.onPause();
+        };
+
+        this.utterance.onresume = () => {
+          this.isPaused = false;
+          if (this.onResume) this.onResume();
+        };
+
+        this.synth.speak(this.utterance);
+        return true;
+      }
+
+      pause() {
+        if (this.isSupported && this.isPlaying && !this.isPaused) {
+          this.synth.pause();
+          return true;
+        }
+        return false;
+      }
+
+      resume() {
+        if (this.isSupported && this.isPlaying && this.isPaused) {
+          this.synth.resume();
+          return true;
+        }
+        return false;
+      }
+
+      stop() {
+        if (this.isSupported) {
+          this.synth.cancel();
+          this.isPlaying = false;
+          this.isPaused = false;
+          return true;
+        }
+        return false;
+      }
+
+      getState() {
+        return {
+          isSupported: this.isSupported,
+          isPlaying: this.isPlaying,
+          isPaused: this.isPaused,
+          isSpeaking: this.synth.speaking,
+          isPending: this.synth.pending
+        };
+      }
+    }
+
+    // ── TTS Feature Initialization ──
+    (function () {
+      // Check if TTS is supported
+      const ttsSupported = 'speechSynthesis' in window;
+      const ttsBtn = document.getElementById('tts-toggle');
+      
+      if (!ttsSupported || !ttsBtn) {
+        return; // Exit if not supported or button not found
+      }
+
+      // Show the TTS button since it's supported
+      ttsBtn.style.display = '';
+
+      // Initialize TTS Manager
+      let ttsManager = null;
+      let ttsState = 'idle'; // idle, playing, paused
+
+      function initTTSManager() {
+        const chapterBody = document.querySelector('.chapter-body');
+        if (!chapterBody) {
+          console.warn('Chapter body not found');
+          return null;
+        }
+
+        const chapterContent = chapterBody.innerHTML;
+
+        return new TTSManager({
+          rate: 1.25,
+          pitch: 1.0,
+          volume: 1.0,
+          lang: 'en-US',
+          onStart: function() {
+            ttsState = 'playing';
+            updateTTSButton();
+          },
+          onEnd: function() {
+            ttsState = 'idle';
+            updateTTSButton();
+          },
+          onPause: function() {
+            ttsState = 'paused';
+            updateTTSButton();
+          },
+          onResume: function() {
+            ttsState = 'playing';
+            updateTTSButton();
+          },
+          onError: function(error) {
+            console.error('TTS Error:', error);
+            ttsState = 'idle';
+            updateTTSButton();
+            if (error === 'not_supported') {
+              alert('Text-to-speech is not supported in your browser.');
+            }
+          }
+        });
+      }
+
+      function updateTTSButton() {
+        const icon = ttsBtn.querySelector('i');
+        
+        switch(ttsState) {
+          case 'playing':
+            icon.className = 'fas fa-pause';
+            ttsBtn.style.color = '#4CAF50'; // Green when playing
+            ttsBtn.title = 'Pause reading';
+            break;
+          case 'paused':
+            icon.className = 'fas fa-play';
+            ttsBtn.style.color = '#FF9800'; // Orange when paused
+            ttsBtn.title = 'Resume reading';
+            break;
+          case 'idle':
+          default:
+            icon.className = 'fas fa-microphone';
+            ttsBtn.style.color = '';
+            ttsBtn.title = 'Text-to-speech';
+            break;
+        }
+      }
+
+      // TTS Button Click Handler
+      ttsBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // Initialize manager on first use
+        if (!ttsManager) {
+          ttsManager = initTTSManager();
+          if (!ttsManager) return;
+        }
+
+        const chapterBody = document.querySelector('.chapter-body');
+        if (!chapterBody) return;
+
+        switch(ttsState) {
+          case 'idle':
+            // Start reading
+            const success = ttsManager.speak(chapterBody.innerHTML);
+            if (success) {
+              ttsState = 'playing';
+              updateTTSButton();
+            }
+            break;
+          
+          case 'playing':
+            // Pause reading
+            ttsManager.pause();
+            ttsState = 'paused';
+            updateTTSButton();
+            break;
+          
+          case 'paused':
+            // Resume reading
+            ttsManager.resume();
+            ttsState = 'playing';
+            updateTTSButton();
+            break;
+        }
+      });
+
+      // Stop TTS when navigating away (prev/next chapter)
+      const navLinks = document.querySelectorAll('.jump-btn, .pag-btn, .chapter-dropdown-item');
+      navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+          if (ttsManager && ttsState !== 'idle') {
+            ttsManager.stop();
+            ttsState = 'idle';
+            updateTTSButton();
+          }
+        });
+      });
+
+      // Stop TTS when page is about to unload
+      window.addEventListener('beforeunload', function() {
+        if (ttsManager && ttsState !== 'idle') {
+          ttsManager.stop();
+        }
+      });
+
+      // Handle page visibility change (pause when tab is hidden)
+      document.addEventListener('visibilitychange', function() {
+        if (document.hidden && ttsManager && ttsState === 'playing') {
+          ttsManager.pause();
+          ttsState = 'paused';
+          updateTTSButton();
+        }
+      });
+
     })();
   </script>
 

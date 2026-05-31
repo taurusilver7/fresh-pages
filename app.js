@@ -50,6 +50,9 @@ const {
 	editIcon,
 	select,
 	json,
+	gt,
+	eq,
+	inc,
 } = require("./utils/hbs");
 
 // templates- handlebars
@@ -63,6 +66,9 @@ app.engine(
 			editIcon,
 			select,
 			json,
+			gt,
+			eq,
+			inc,
 		},
 		defaultLayout: "main",
 		extname: ".hbs",

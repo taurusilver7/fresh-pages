@@ -48,5 +48,14 @@ module.exports = {
 	json: function (context) {
 		return JSON.stringify(context);
 	},
+	gt: function (a, b) {
+		return a > b;
+	},
+	eq: function (a, b) {
+		return a == b;
+	},
+	inc: function (value) {
+		return parseInt(value) + 1;
+	},
 	
 };

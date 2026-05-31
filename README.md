@@ -1,133 +1,464 @@
 # Fresh Pages
 
-> A Fully Server-Side Writing Platform
+> A Fully Server-Side Writing Platform with Multi-Chapter Story Support
 
-> A MERN CRUD Application API & Client.
-> A fully server-side function for the story book application.
-> MVC architecture in API building.
+A Node.js/Express CRUD application for creative writers to compose, manage, and share multi-chapter stories. Built with server-side rendering using Handlebars, Google OAuth authentication, and a rich WYSIWYG editor.
 
 ![fresh-pages](https://i.ibb.co/SxLMzBM/fresh-pages.png)
 
-### Setup work environment.
+## Features
 
-Start the application in a local development server.
+### 📝 Multi-Chapter Story Management
+- Create stories with unlimited chapters
+- Rich text editing with CKEditor WYSIWYG editor
+- Chapter-based navigation with prev/next controls
+- Dynamic chapter tabs for easy editing
+- Auto-save chapter content during editing
 
-```bash
-npm init -y
-# and
-npm run dev
+### 🎨 Advanced Reader Experience
+- **Customizable Reading Interface**:
+  - Font size adjustment (A-, A, A+)
+  - Line spacing toggle (3 presets: 1.5, 1.95, 2.4)
+  - Font family cycling (5 reader-optimized fonts: Georgia, Helvetica, Palatino, Segoe UI, Merriweather)
+  - Dark mode toggle with persistent preferences
+- **Chapter Navigation**: Query-based chapter viewing (`?chapter=N`)
+- **Responsive Layout**: Optimized for reading with max-width constraints
+
+### 🔐 Authentication & Authorization
+- Google OAuth 2.0 authentication via Passport.js
+- Session persistence with MongoDB store (connect-mongo)
+- Route protection middleware (`ensureAuth`, `ensureGuest`)
+- User-specific story ownership validation
+
+### 📚 Story Features
+- **Visibility Control**: Public/Private story status
+- **Story Metadata**: Title, description, creation date, chapter count
+- **User Dashboard**: Personal story library with edit/delete actions
+- **Public Story Feed**: Browse all public stories from the community
+- **User Profiles**: View stories by specific authors
+
+### 🎯 Data Models
+
+**User Schema**:
+- Google ID, display name, first/last name
+- Profile image
+- Creation timestamp
+
+**Story Schema**:
+- Title, description, status (public/private)
+- Chapters array with embedded ChapterSchema
+- User reference (author)
+- Creation timestamp
+
+**Chapter Schema** (embedded):
+- Chapter number (auto-incremented)
+- Title (defaults to "Chapter N")
+- Content (rich HTML from CKEditor)
+
+## Tech Stack
+
+### Backend
+- **Runtime**: Node.js (>=18.0.0)
+- **Framework**: Express.js
+- **Template Engine**: Handlebars (express-handlebars)
+- **Database**: MongoDB with Mongoose ODM
+- **Authentication**: Passport.js + passport-google-oauth20
+- **Session Store**: connect-mongo (v3.2.0)
+
+### Frontend
+- **UI Framework**: Materialize CSS
+- **Icons**: Font Awesome
+- **Editor**: CKEditor 4.16.0 (WYSIWYG)
+- **Date Formatting**: Moment.js
+- **Dark Mode**: Custom CSS with localStorage persistence
+
+### Development Tools
+- **Process Manager**: Nodemon
+- **Environment Variables**: dotenv
+- **HTTP Method Override**: method-override (for PUT/DELETE in forms)
+- **Logging**: Morgan (development mode)
+- **Testing**: Jest + Supertest
+
+## Installation & Setup
+
+### Prerequisites
+- Node.js >= 18.0.0
+- MongoDB instance (local or cloud)
+- Google Cloud Console project with OAuth 2.0 credentials
+
+### Environment Configuration
+
+Create `config/config.env`:
+
+```env
+PORT=5000
+NODE_ENV=development
+DATABASE_APPLICATON_URL=mongodb://localhost:27017/fresh-pages
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 ```
 
--  The application modes are set in the _package.json_ for test, development & production modes.
-   <br />
--  import the required dependencies & dev-dependencies with `npm install <package>` & `npm install <package> --save-dev`.
-   <br />
--  set up the required scripts for development & production modes.
+### Google OAuth Setup
 
----
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select existing
+3. Enable Google+ API
+4. Create OAuth 2.0 credentials
+5. Add authorized redirect URI: `http://localhost:5000/auth/google/callback`
+6. Copy Client ID and Client Secret to `config.env`
 
-Set up the server with application configuration, env config, template-engine, application listeners.
-Setup a db in _./config/_ for the database configuration & connect it to the server.
-Create views directory for template literals & organise directory layout.
-Create routes directory for api routes & create routes for top-level routes [dashboard, login/landing] in **index.js**.
+### Install Dependencies
 
----
+```bash
+npm install
+```
 
--  Use [materialize](https://materializecss.com/getting-started.html) to add design to the webpage.
--  Use [font-awesome](https://cdnjs.com/libraries/font-awesome) to add stylish fonts to the webpages in api.
+### Run Application
 
----
+```bash
+# Development mode (with nodemon)
+npm run dev
 
--  create a public directory to hold all the static files for the application [css, imgs, icons] & configure it to the server file to recognize the static directory.
--  Render the routes in /routes with corresponding **.hbs** files in _/views_.
+# Production mode
+npm start
 
----
+# Run tests
+npm test
+```
 
-### Authenticate Application
+## Application Architecture
 
--  create a project for the application in google-cloud-console & enable api services for the application. add a redirect url to working localhost now & hosted homepage in future to enable google oauth services.
--  ---> Copy the **client id & client secret** for enabling the google+ services
+### MVC Structure
 
----
+```
+server/
+├── app.js                 # Express app configuration
+├── server.js              # Server listener
+├── config/
+│   ├── config.env         # Environment variables
+│   ├── db.js              # MongoDB connection
+│   └── passport.js        # Passport Google Strategy
+├── controller/
+│   └── auth.js            # Authentication middleware
+├── models/
+│   ├── User.js            # User schema
+│   └── Story.js           # Story & Chapter schemas
+├── routes/
+│   ├── index.js           # Landing & dashboard routes
+│   ├── auth.js            # OAuth routes
+│   └── stories.js         # Story CRUD routes
+├── views/
+│   ├── layouts/           # Main & login layouts
+│   ├── partials/          # Reusable components
+│   ├── stories/           # Story templates
+│   └── error/             # Error pages (404, 500)
+├── utils/
+│   └── hbs.js             # Handlebars helpers
+└── public/
+    ├── css/               # Custom stylesheets
+    └── [images]           # Static assets
+```
 
--  create a _googleStrategy_ using passport js for 2 specified login routes for the api.
--  create passport strategy using google strategy for success & error routes & re-directs.
--  The passport configuration is created in _/config_ dir & imported to server.
--  create passport middleware with **initialize & session** from passport [passport-session only works with express sessions initialized above]
+### Key Middleware Configuration
 
----
+**Body Parsers**:
+```javascript
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use(express.json({ limit: "50mb" }));
+```
 
-### Mongoose models
+**Method Override** (for PUT/DELETE in HTML forms):
+```javascript
+app.use(methodOverride(function (req, res) {
+  if (req.body && typeof req.body === "object" && "_method" in req.body) {
+    let method = req.body._method;
+    delete req.body._method;
+    return method;
+  }
+}));
+```
 
--  a _/models_ directory to hold the db models using mongoose is created to store the models in passport strategy.
--  A mongoose model with a schema to get the user info is created in _/models/User.js_
+**Session Management**:
+```javascript
+app.use(session({
+  secret: "keyboard cat",
+  resave: false,
+  saveUninitialized: false,
+  store: new MongoStore({ mongooseConnection: mongoose.connection })
+}));
+```
 
-> In a typical web application, the credentials used to authenticate a user will only be transmitted during the login request. If authentication succeeds, a session will be established and maintained via a cookie set in the user's browser.
-> Each subsequent request will not contain credentials, but rather the unique cookie that identifies the session. In order to support login sessions, Passport will serialize and deserialize user instances to and from the session.
+### Handlebars Helpers
 
--  The passport strategy allows the user to login with google+ authentication using passport-js
--  The login & logout routes are created in _/routes/auth.js_.
--  A partial view template to insert into other template (main.hbs) to get a navbar for logout button.
--  A script for the side navbar operation is created at **main.hbs**
+Custom helpers registered in `app.js`:
 
----
+- **formatDate**: Format dates using Moment.js (`MMM Do YYYY`)
+- **stripTags**: Remove HTML tags from content
+- **truncate**: Limit text length with ellipsis
+- **editIcon**: Conditional edit button for story owners
+- **select**: Pre-select dropdown options
+- **json**: Serialize objects for client-side JavaScript
 
--  to avoid a user/non-user/guest to redirect to other pages through url's, a middleware to authorize the user/guest priviliages is created in _/controller/auth.js_.
--  The user/ guest priviliges are tightly bound. But the user session expires with every refresh/ app changes. To avoid this, the session is stored in database with **mongo-connect** package
--  The package used for session storing is `connect-mongo@3` with `express-session`. The store location is the current mongoose.connection.
+## API Routes
 
----
+### Authentication Routes (`/auth`)
 
-### Create Stories for the App
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/auth/google` | Initiate Google OAuth flow |
+| GET | `/auth/google/callback` | OAuth callback handler |
+| GET | `/auth/logout` | Logout and destroy session |
 
--  create a model for the story in the user dashboard.
--  In the index routes, for the dashboard, restrict the find to _user.id_ from the req & enable `lean()` to make the document returned from queries as plain js objects but not mongoose documents.
+### Main Routes (`/`)
 
--  create a 404 error & 500 internal server error templates for error rendering in the dashboard route.
--  The dashboard table for stories is created in /dashboard.hbs
--  Add a stroy add button in partials & add it to the main template.
--  Create a _/stories_ dir in views to create different types of templates for creating, editing stories. Add their corresponding routes to the _/router_.
--  Link the stories route to the server. Add the script for status selection in **add.hbs** template to the **main.hbs**
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/` | Landing/login page | Guest only |
+| GET | `/dashboard` | User's story dashboard | Required |
 
----
+### Story Routes (`/stories`)
 
--  For the textarea in the /stories/add route to be converted into `wysiwyg editor`, **ck editor** is imported as script.
--  more about wysiwyg editor is [here](https://froala.com/wysiwyg-editor/)
--  cdn for ck editor v4.16.0 is [here](https://cdnjs.com/libraries/ckeditor)
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| GET | `/stories` | Browse all public stories | Required |
+| GET | `/stories/add` | Story creation form | Required |
+| POST | `/stories` | Create new story | Required |
+| GET | `/stories/:id` | View single story (with `?chapter=N`) | Required |
+| GET | `/stories/edit/:id` | Edit story form | Owner only |
+| PUT | `/stories/:id` | Update story | Owner only |
+| DELETE | `/stories/:id` | Delete story | Owner only |
+| GET | `/stories/user/:userId` | View user's public stories | Required |
 
--  To post the data to database, a post req is created in /stories route with body-parsers enabled in server, for webpage rendering.
--  format the date in each story in the dashboard, using a helper to wrap around date to format it. Register the helper with handlebars in server to use it in templates
--  The moment format required (used) in app is 'MMMM Do YYYY, h:mm:ss a'
+## Application Workflow
 
----
+### 1. User Authentication Flow
 
-### Adding & Editing Stories
+```
+Landing Page (/) 
+  → Click "Login with Google"
+  → /auth/google (Passport initiates OAuth)
+  → Google consent screen
+  → /auth/google/callback (Passport verifies)
+  → User created/retrieved from DB
+  → Session established
+  → Redirect to /dashboard
+```
 
--  create a public stories end point to the api. create a template in _/stories/index.hb_s for the get route in _/routes/stories\_.
--  To refactor the webpage, some helpers to strip the p-tags, truncate the text are created.
--  Register the helper functions in server to use them in templates.
+### 2. Story Creation Flow
 
----
+```
+Dashboard → "Write your first story" / "Add Story" button
+  → /stories/add (Form with chapter tabs)
+  → User fills: Title, Description, Status
+  → User adds chapters via tab interface
+  → CKEditor for rich text content
+  → Submit form (POST /stories)
+  → Parallel arrays (chapterTitles[], chapterContents[]) processed
+  → Story document created with embedded chapters
+  → Redirect to /dashboard
+```
 
--  A helper function editIcon to intiate a story editing is created along with the template for the edit button.
--  create a route for editing & template for the edit web-page >> _/stories/edit.hbs_ & _/routes/stories_
--  The edit tempate is similar to add template with already values of the story ready to be edited >> `value="{{story.title}}"` >> `<textarea>{{story.body}}</textarea>`
--  To edit the story status in the database, they are wrapped in a select helper function >>
-   `{{#select story.status}}` with their status as selectors.
+**Chapter Data Processing**:
+```javascript
+// Client-side: Hidden inputs populated on submit
+chapters.forEach(ch => {
+  <input name="chapterTitles[]" value="ch.title">
+  <input name="chapterContents[]" value="ch.content">
+});
 
--  the edit function is a PUT request, which simply cannot be added to form>method. The **method-override** package is imported to add a hidden input(desired method=PUT/PATCH/DEL) to the html form(default method=POST) as a middleware.
-   `<input type="hidden" name="_method" value=""PUT">`
+// Server-side: Rebuild chapter objects
+const chapters = chapterTitles.map((title, index) => ({
+  chapterNumber: index + 1,
+  title: title || `Chapter ${index + 1}`,
+  content: chapterContents[index] || ""
+}));
+```
 
----
+### 3. Story Reading Flow
 
--  create a button that uses method-override to delete a story from the dashboard.
--  create a delete req in /routes/stories with method _model.remove()_
+```
+Public Stories (/stories) or Dashboard
+  → Click story card
+  → /stories/:id (defaults to chapter 1)
+  → Reader interface loads with:
+    - Story metadata banner
+    - Chapter navigation bar
+    - Reader customization controls
+    - Chapter content
+    - Pagination controls
+  → Navigate: /stories/:id?chapter=2, ?chapter=3, etc.
+```
 
--  create a get request for single story & create a template for it. >> _/stories/show.hbs_
--  create a get request for user stories only & template used for web-page is _/stories/index.hbs_
+**Reader Preferences** (localStorage):
+```javascript
+{
+  fontSize: 1.08,        // rem units (0.8 - 1.6)
+  spacing: 1.95,         // line-height (1.5, 1.95, 2.4)
+  fontFamily: 'georgia', // 5 font options
+  darkMode: false        // boolean
+}
+```
 
-# Deployment
+### 4. Story Editing Flow
 
-Deploy the server application on [render](https://render.com) with custom parameters and settings.
+```
+Dashboard → Click "Edit" on story card
+  → /stories/edit/:id
+  → Ownership validation (user.id === story.user)
+  → Form pre-populated with story data
+  → Chapters loaded from __STORY_CHAPTERS__ global
+  → User modifies content
+  → Submit (PUT /stories/:id via method-override)
+  → Chapters array rebuilt from form data
+  → Story updated with findByIdAndUpdate
+  → Redirect to /dashboard
+```
 
-Check the deployed [fresh-pages](http://fresh-pages.onrender.com/) here and create your own stories.
+### 5. Authorization Logic
+
+**Route Protection**:
+- `ensureAuth`: Redirects unauthenticated users to `/`
+- `ensureGuest`: Redirects authenticated users to `/dashboard`
+
+**Ownership Validation** (edit/delete):
+```javascript
+if (story.user.toString() !== req.user.id) {
+  return res.redirect("/stories");
+}
+```
+
+**Private Story Access**:
+```javascript
+if (story.status === "private") {
+  if (!req.user || req.user.id !== story.user._id.toString()) {
+    return res.render("error/404");
+  }
+}
+```
+
+## Client-Side Features
+
+### Dark Mode Implementation
+
+**Scope**: Applies to dashboard, story forms, and reader interface
+
+**Persistence**: `localStorage` key `fp_reader_prefs`
+
+**Targets**:
+- Body element
+- Story wrappers
+- CKEditor iframe (injected stylesheet)
+
+### CKEditor Configuration
+
+**Plugins**: 
+- Core: wysiwygarea, toolbar, basicstyles, clipboard
+- Formatting: format, font, blockquote, justify, list, indent
+- Advanced: codesnippet, horizontalrule, pagebreak, find, maximize
+
+**Dark Mode Support**: 
+- Injects `/css/editor-dark.css` into editor iframe on `instanceReady`
+
+**Content Sync**:
+- `editor.getData()` retrieves HTML content
+- `editor.updateElement()` syncs to textarea before submit
+
+### Chapter Tab Management
+
+**State Management**:
+```javascript
+const chapters = [{ title: '', content: '' }];
+let activeIndex = 0;
+```
+
+**Operations**:
+- **Add Chapter**: Push new object, switch to new tab
+- **Remove Chapter**: Splice array, adjust activeIndex
+- **Switch Tab**: Save current, load target chapter into editor
+- **Live Title Update**: Input event updates tab label
+
+**Submit Process**:
+1. `saveActive()` - Flush editor content to chapters array
+2. `updateElement()` - Sync CKEditor to textarea
+3. Generate hidden inputs for each chapter
+4. Submit form with complete chapter data
+
+## Error Handling
+
+### Error Pages
+
+- **404**: Story not found or unauthorized access
+- **500**: Database errors, server failures
+- **401**: Unauthorized access (redirects)
+
+### Error Scenarios
+
+| Scenario | Response |
+|----------|----------|
+| Story not found | Render `error/404` |
+| Database connection failure | Log error, exit process |
+| Unauthorized edit attempt | Redirect to `/stories` |
+| Private story access by non-owner | Render `error/404` |
+| Session expired | Redirect to `/` (login) |
+
+## Testing
+
+**Framework**: Jest + Supertest
+
+**Test Files**:
+- `tests/hbs.test.js` - Handlebars helper unit tests
+- `tests/stories.test.js` - Story route integration tests
+
+**Run Tests**:
+```bash
+npm test
+```
+
+## Deployment
+
+### Production Checklist
+
+1. **Environment Variables**:
+   - Set `NODE_ENV=production`
+   - Update `DATABASE_APPLICATON_URL` to production MongoDB
+   - Add production domain to Google OAuth redirect URIs
+
+2. **Security**:
+   - Change session secret in production
+   - Enable HTTPS
+   - Set secure cookie flags
+
+3. **Performance**:
+   - Enable MongoDB connection pooling
+   - Configure CDN for static assets
+   - Implement rate limiting
+
+### Deploy on Render
+
+1. Create new Web Service
+2. Connect GitHub repository
+3. Set build command: `npm install`
+4. Set start command: `npm start`
+5. Add environment variables from `config.env`
+6. Update Google OAuth redirect URI with Render domain
+
+**Live Demo**: [fresh-pages.onrender.com](http://fresh-pages.onrender.com/)
+
+## Future Enhancements
+
+- [ ] Story categories/genres
+- [ ] Search and filtering
+- [ ] Comments and reactions
+- [ ] Reading progress tracking
+- [ ] Export stories (PDF, EPUB)
+- [ ] Collaborative writing
+- [ ] Story analytics (views, reads)
+- [ ] Mobile app
+
+## License
+
+MIT
+
+## Author
+
+taurusilver7
